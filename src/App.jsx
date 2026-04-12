@@ -1,53 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
-const GROUP_CONFIG = [
-  { name: "松岡G", color: "#0ea5e9" },
-  { name: "田辺G", color: "#f59e0b" },
-  { name: "中村G", color: "#a855f7" },
-];
-const MEMBERS = [
-  { name: "田中太郎", group: "松岡G" },
-  { name: "山田花子", group: "松岡G" },
-  { name: "鈴木一郎", group: "田辺G" },
-  { name: "佐藤次郎", group: "田辺G" },
-  { name: "高橋美咲", group: "中村G" },
-  { name: "伊藤健太", group: "中村G" },
-];
+const GAS_URL = "https://script.google.com/a/macros/lottnest.co.jp/s/AKfycbzJZdXcb7YvP3gQBWbaK7i0NOT3w7TPFC4w0DD_e7IEnrMwckdoQl8ClqZzIsn9lTqA/exec";
 
-const GROUPS = GROUP_CONFIG.map(g => g.name);
-const GROUP_COLOR = Object.fromEntries(GROUP_CONFIG.map(g => [g.name, g.color]));
 const TYPES = ["有休", "遅刻", "早退", "半休", "欠勤", "リモート"];
 const TYPE_COLOR = { 有休: "#10b981", 遅刻: "#f59e0b", 早退: "#ef4444", 半休: "#8b5cf6", 欠勤: "#f43f5e", リモート: "#0ea5e9" };
 const TYPE_BG   = { 有休: "#d1fae5", 遅刻: "#fef3c7", 早退: "#fee2e2", 半休: "#ede9fe", 欠勤: "#ffe4e6", リモート: "#e0f2fe" };
 const TYPE_ICON = { 有休: "🏖️", 遅刻: "⏰", 早退: "🚪", 半休: "🌓", 欠勤: "❌", リモート: "🏠" };
-const MONTHS = ["1月","2月","3月","4月"];
-
-const rawData = [
-  {date:"2026-04-01", name:"田中太郎", type:"有休", detail:"私用"},
-  {date:"2026-04-02", name:"山田花子", type:"遅刻", detail:"30分"},
-  {date:"2026-04-03", name:"鈴木一郎", type:"半休", detail:"午前・通院"},
-  {date:"2026-04-07", name:"佐藤次郎", type:"遅刻", detail:"15分"},
-  {date:"2026-04-07", name:"田中太郎", type:"リモート", detail:""},
-  {date:"2026-04-08", name:"田中太郎", type:"遅刻", detail:"20分"},
-  {date:"2026-04-08", name:"高橋美咲", type:"リモート", detail:""},
-  {date:"2026-04-09", name:"高橋美咲", type:"有休", detail:"旅行"},
-  {date:"2026-04-09", name:"山田花子", type:"リモート", detail:""},
-  {date:"2026-04-10", name:"山田花子", type:"有休", detail:"家族の用事"},
-  {date:"2026-04-10", name:"佐藤次郎", type:"リモート", detail:""},
-  {date:"2026-04-11", name:"鈴木一郎", type:"早退", detail:"体調不良"},
-  {date:"2026-04-11", name:"田中太郎", type:"リモート", detail:""},
-  {date:"2026-04-14", name:"田中太郎", type:"有休", detail:"私用"},
-  {date:"2026-04-14", name:"山田花子", type:"リモート", detail:""},
-  {date:"2026-04-15", name:"佐藤次郎", type:"欠勤", detail:"体調不良"},
-  {date:"2026-04-15", name:"高橋美咲", type:"リモート", detail:""},
-  {date:"2026-04-16", name:"高橋美咲", type:"遅刻", detail:"電車遅延"},
-  {date:"2026-04-17", name:"山田花子", type:"半休", detail:"午後・私用"},
-  {date:"2026-04-17", name:"鈴木一郎", type:"リモート", detail:""},
-  {date:"2026-04-18", name:"鈴木一郎", type:"有休", detail:"私用"},
-  {date:"2026-04-18", name:"伊藤健太", type:"リモート", detail:""},
-  {date:"2026-04-19", name:"伊藤健太", type:"遅刻", detail:"10分"},
-];
 
 const monthOf = d => parseInt(d.split("-")[1]) + "月";
 
@@ -353,6 +312,53 @@ const styles = `
     padding: 50px 20px;
     font-size: 13px;
   }
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    gap: 12px;
+    color: #94a3b8;
+    font-size: 13px;
+  }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 3px solid #e2e8f0;
+    border-top-color: #0ea5e9;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-state {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    border-radius: 14px;
+    padding: 20px 16px;
+    color: #e11d48;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .error-state strong { display: block; font-size: 13px; margin-bottom: 6px; }
+  .reload-btn {
+    margin-top: 12px;
+    padding: 8px 18px;
+    background: #0ea5e9;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .reload-btn:hover { background: #0284c7; }
+  .last-updated {
+    font-size: 10px;
+    color: #94a3b8;
+    font-family: 'DM Mono', monospace;
+    margin-top: 2px;
+  }
 `;
 
 const tooltipStyle = {
@@ -365,12 +371,53 @@ const tooltipStyle = {
 };
 
 export default function App() {
-  const [selectedMonth, setSelectedMonth] = useState("4月");
+  const [rawData, setRawData] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [groupConfig, setGroupConfig] = useState([]);
+  const [months, setMonths] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdated, setLastUpdated] = useState(null);
+
+  const [selectedMonth, setSelectedMonth] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState("全グループ");
   const [selectedMember, setSelectedMember] = useState("全員");
   const [tab, setTab] = useState("overview");
 
-  const filteredMembers = MEMBERS.filter(m => selectedGroup === "全グループ" || m.group === selectedGroup);
+  const fetchData = () => {
+    setLoading(true);
+    setError(null);
+    fetch(GAS_URL)
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        const records = data.records ?? [];
+        const memberList = data.members ?? [];
+        const groups = data.groups ?? [];
+        const monthList = data.months ?? [];
+
+        setRawData(records);
+        setMembers(memberList);
+        setGroupConfig(groups);
+        setMonths(monthList);
+        setSelectedMonth(prev => prev ?? monthList[monthList.length - 1] ?? null);
+        setLastUpdated(new Date().toLocaleTimeString("ja-JP"));
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  };
+
+  useEffect(() => { fetchData(); }, []);
+
+  const GROUPS = groupConfig.map(g => g.name);
+  const GROUP_COLOR = Object.fromEntries(groupConfig.map(g => [g.name, g.color]));
+
+  const filteredMembers = members.filter(m => selectedGroup === "全グループ" || m.group === selectedGroup);
   const filteredMemberNames = filteredMembers.map(m => m.name);
   const filtered = rawData.filter(r =>
     monthOf(r.date) === selectedMonth &&
@@ -390,7 +437,7 @@ export default function App() {
 
   const pieData = TYPES.map(t => ({ name: t, value: filtered.filter(r => r.type === t).length })).filter(d => d.value > 0);
 
-  const trendData = MONTHS.map(mo => {
+  const trendData = months.map(mo => {
     const rows = rawData.filter(r => monthOf(r.date) === mo && filteredMemberNames.includes(r.name));
     const obj = { month: mo };
     TYPES.forEach(t => obj[t] = rows.filter(r => r.type === t).length);
@@ -408,166 +455,188 @@ export default function App() {
             <span className="header-badge">LIVE</span>
           </div>
           <div className="header-sub">Chatwork連携 · 自動集計システム</div>
+          {lastUpdated && <div className="last-updated">最終更新: {lastUpdated}</div>}
         </div>
-        <div className="filters">
-          <select className="filter-select" value={selectedMonth}
-            onChange={e => setSelectedMonth(e.target.value)}>
-            {MONTHS.map(m => <option key={m}>{m}</option>)}
-          </select>
-          <select className="filter-select" value={selectedGroup} style={{ flex: 2 }}
-            onChange={e => { setSelectedGroup(e.target.value); setSelectedMember("全員"); }}>
-            <option>全グループ</option>
-            {GROUPS.map(g => <option key={g}>{g}</option>)}
-          </select>
-          <select className="filter-select" value={selectedMember} style={{ flex: 2 }}
-            onChange={e => setSelectedMember(e.target.value)}>
-            <option>全員</option>
-            {filteredMembers.map(m => <option key={m.name}>{m.name}</option>)}
-          </select>
-        </div>
-        <div className="tabs">
-          {[["overview","📈 概要"], ["member","👤 社員別"], ["log","📋 ログ"]].map(([t, label]) => (
-            <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`}
-              onClick={() => setTab(t)}>{label}</button>
-          ))}
-        </div>
-        {tab === "overview" && (
+
+        {loading && (
+          <div className="loading-state">
+            <div className="spinner" />
+            <span>データを読み込んでいます…</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="error-state">
+            <strong>データの取得に失敗しました</strong>
+            {error}
+            <br />
+            <button className="reload-btn" onClick={fetchData}>再読み込み</button>
+          </div>
+        )}
+
+        {!loading && !error && (
           <>
-            <div className="kpi-grid">
-              {kpis.map(k => (
-                <div key={k.label} className="kpi-card" style={{ "--accent": k.color }}>
-                  <div className="kpi-icon">{k.icon}</div>
-                  <div className="kpi-value">{k.value}</div>
-                  <div className="kpi-label">{k.label}</div>
-                </div>
+            <div className="filters">
+              <select className="filter-select" value={selectedMonth ?? ""}
+                onChange={e => setSelectedMonth(e.target.value)}>
+                {months.map(m => <option key={m}>{m}</option>)}
+              </select>
+              <select className="filter-select" value={selectedGroup} style={{ flex: 2 }}
+                onChange={e => { setSelectedGroup(e.target.value); setSelectedMember("全員"); }}>
+                <option>全グループ</option>
+                {GROUPS.map(g => <option key={g}>{g}</option>)}
+              </select>
+              <select className="filter-select" value={selectedMember} style={{ flex: 2 }}
+                onChange={e => setSelectedMember(e.target.value)}>
+                <option>全員</option>
+                {filteredMembers.map(m => <option key={m.name}>{m.name}</option>)}
+              </select>
+            </div>
+            <div className="tabs">
+              {[["overview","📈 概要"], ["member","👤 社員別"], ["log","📋 ログ"]].map(([t, label]) => (
+                <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`}
+                  onClick={() => setTab(t)}>{label}</button>
               ))}
             </div>
-            <div className="chart-card">
-              <div className="chart-title">社員別内訳（{selectedMonth}）</div>
-              <ResponsiveContainer width="100%" height={170}>
-                <BarChart data={memberStats} margin={{ left: -28, right: 4 }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f8fafc' }} />
-                  <Legend wrapperStyle={{ fontSize: 10 }} iconSize={7} />
-                  {TYPES.map(t => <Bar key={t} dataKey={t} stackId="a" fill={TYPE_COLOR[t]} />)}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="chart-card">
-              <div className="chart-title">種別割合（{selectedMonth}）</div>
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={170}>
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" outerRadius={65} innerRadius={28}
-                      dataKey="value" label={({ name, value }) => `${name} ${value}`}
-                      labelLine={false} style={{ fontSize: 10 }}>
-                      {pieData.map((e, i) => <Cell key={i} fill={TYPE_COLOR[e.name]} />)}
-                    </Pie>
-                    <Tooltip contentStyle={tooltipStyle} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : <div className="empty-state">データなし</div>}
-            </div>
-            <div className="chart-card">
-              <div className="chart-title">月別トレンド</div>
-              <ResponsiveContainer width="100%" height={150}>
-                <BarChart data={trendData} margin={{ left: -28, right: 4 }}>
-                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f8fafc' }} />
-                  <Legend wrapperStyle={{ fontSize: 10 }} iconSize={7} />
-                  {TYPES.map(t => <Bar key={t} dataKey={t} stackId="a" fill={TYPE_COLOR[t]} />)}
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </>
-        )}
-        {tab === "member" && (
-          <div>
-            {GROUPS.filter(g => selectedGroup === "全グループ" || g === selectedGroup).map(g => {
-              const gMembers = MEMBERS.filter(m => m.group === g);
-              return (
-                <div key={g} className="group-section">
-                  <div className="group-header">
-                    <div className="group-bar" style={{ background: GROUP_COLOR[g] }} />
-                    <span className="group-name" style={{ color: GROUP_COLOR[g] }}>{g}</span>
-                    <span className="group-count">{gMembers.length}名</span>
-                  </div>
-                  <div className="member-list">
-                    {gMembers.map(m => {
-                      const rows = rawData.filter(r => monthOf(r.date) === selectedMonth && r.name === m.name);
-                      return (
-                        <div key={m.name} className="member-row">
-                          <div className="member-name">
-                            <div className="member-avatar">👤</div>
-                            {m.name}
+            {tab === "overview" && (
+              <>
+                <div className="kpi-grid">
+                  {kpis.map(k => (
+                    <div key={k.label} className="kpi-card" style={{ "--accent": k.color }}>
+                      <div className="kpi-icon">{k.icon}</div>
+                      <div className="kpi-value">{k.value}</div>
+                      <div className="kpi-label">{k.label}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="chart-card">
+                  <div className="chart-title">社員別内訳（{selectedMonth}）</div>
+                  <ResponsiveContainer width="100%" height={170}>
+                    <BarChart data={memberStats} margin={{ left: -28, right: 4 }}>
+                      <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f8fafc' }} />
+                      <Legend wrapperStyle={{ fontSize: 10 }} iconSize={7} />
+                      {TYPES.map(t => <Bar key={t} dataKey={t} stackId="a" fill={TYPE_COLOR[t]} />)}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="chart-card">
+                  <div className="chart-title">種別割合（{selectedMonth}）</div>
+                  {pieData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={170}>
+                      <PieChart>
+                        <Pie data={pieData} cx="50%" cy="50%" outerRadius={65} innerRadius={28}
+                          dataKey="value" label={({ name, value }) => `${name} ${value}`}
+                          labelLine={false} style={{ fontSize: 10 }}>
+                          {pieData.map((e, i) => <Cell key={i} fill={TYPE_COLOR[e.name]} />)}
+                        </Pie>
+                        <Tooltip contentStyle={tooltipStyle} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : <div className="empty-state">データなし</div>}
+                </div>
+                <div className="chart-card">
+                  <div className="chart-title">月別トレンド</div>
+                  <ResponsiveContainer width="100%" height={150}>
+                    <BarChart data={trendData} margin={{ left: -28, right: 4 }}>
+                      <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={tooltipStyle} cursor={{ fill: '#f8fafc' }} />
+                      <Legend wrapperStyle={{ fontSize: 10 }} iconSize={7} />
+                      {TYPES.map(t => <Bar key={t} dataKey={t} stackId="a" fill={TYPE_COLOR[t]} />)}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </>
+            )}
+            {tab === "member" && (
+              <div>
+                {GROUPS.filter(g => selectedGroup === "全グループ" || g === selectedGroup).map(g => {
+                  const gMembers = members.filter(m => m.group === g);
+                  return (
+                    <div key={g} className="group-section">
+                      <div className="group-header">
+                        <div className="group-bar" style={{ background: GROUP_COLOR[g] }} />
+                        <span className="group-name" style={{ color: GROUP_COLOR[g] }}>{g}</span>
+                        <span className="group-count">{gMembers.length}名</span>
+                      </div>
+                      <div className="member-list">
+                        {gMembers.map(m => {
+                          const rows = rawData.filter(r => monthOf(r.date) === selectedMonth && r.name === m.name);
+                          return (
+                            <div key={m.name} className="member-row">
+                              <div className="member-name">
+                                <div className="member-avatar">👤</div>
+                                {m.name}
+                              </div>
+                              <div className="type-tags">
+                                {TYPES.map(t => {
+                                  const c = rows.filter(r => r.type === t).length;
+                                  return (
+                                    <div key={t} className="type-tag" style={{
+                                      background: c > 0 ? TYPE_BG[t] : "#f8fafc",
+                                      borderColor: c > 0 ? TYPE_COLOR[t] + "44" : "#e2e8f0",
+                                      color: c > 0 ? TYPE_COLOR[t] : "#cbd5e1",
+                                    }}>
+                                      <span style={{ fontSize: 10 }}>{TYPE_ICON[t]}</span>
+                                      <span>{t} {c > 0 ? c : "—"}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {tab === "log" && (
+              <div className="log-card">
+                <div className="log-header">
+                  {selectedMonth} / {selectedGroup} / {selectedMember} — {filtered.length}件
+                </div>
+                {filtered.length === 0
+                  ? <div className="empty-state">該当データなし</div>
+                  : [...filtered].sort((a, b) => a.date < b.date ? -1 : 1).map((r, i) => {
+                    const grp = members.find(m => m.name === r.name)?.group;
+                    return (
+                      <div key={i} className="log-row">
+                        <div className="log-icon-wrap" style={{ background: TYPE_BG[r.type] }}>
+                          {TYPE_ICON[r.type]}
+                        </div>
+                        <div className="log-body">
+                          <div className="log-top">
+                            <span className="log-name">{r.name}</span>
+                            {grp && (
+                              <span className="log-tag" style={{
+                                background: GROUP_COLOR[grp] + "20",
+                                color: GROUP_COLOR[grp],
+                              }}>{grp}</span>
+                            )}
+                            <span className="log-tag" style={{
+                              background: TYPE_BG[r.type],
+                              color: TYPE_COLOR[r.type],
+                            }}>{r.type}</span>
                           </div>
-                          <div className="type-tags">
-                            {TYPES.map(t => {
-                              const c = rows.filter(r => r.type === t).length;
-                              return (
-                                <div key={t} className="type-tag" style={{
-                                  background: c > 0 ? TYPE_BG[t] : "#f8fafc",
-                                  borderColor: c > 0 ? TYPE_COLOR[t] + "44" : "#e2e8f0",
-                                  color: c > 0 ? TYPE_COLOR[t] : "#cbd5e1",
-                                }}>
-                                  <span style={{ fontSize: 10 }}>{TYPE_ICON[t]}</span>
-                                  <span>{t} {c > 0 ? c : "—"}</span>
-                                </div>
-                              );
-                            })}
+                          <div className="log-meta">
+                            <span className="log-date">📅 {r.date}</span>
+                            {r.detail
+                              ? <span className="log-detail">📝 {r.detail}</span>
+                              : <span className="log-no-detail">詳細なし</span>
+                            }
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-        {tab === "log" && (
-          <div className="log-card">
-            <div className="log-header">
-              {selectedMonth} / {selectedGroup} / {selectedMember} — {filtered.length}件
-            </div>
-            {filtered.length === 0
-              ? <div className="empty-state">該当データなし</div>
-              : [...filtered].sort((a, b) => a.date < b.date ? -1 : 1).map((r, i) => {
-                const grp = MEMBERS.find(m => m.name === r.name)?.group;
-                return (
-                  <div key={i} className="log-row">
-                    <div className="log-icon-wrap" style={{ background: TYPE_BG[r.type] }}>
-                      {TYPE_ICON[r.type]}
-                    </div>
-                    <div className="log-body">
-                      <div className="log-top">
-                        <span className="log-name">{r.name}</span>
-                        {grp && (
-                          <span className="log-tag" style={{
-                            background: GROUP_COLOR[grp] + "20",
-                            color: GROUP_COLOR[grp],
-                          }}>{grp}</span>
-                        )}
-                        <span className="log-tag" style={{
-                          background: TYPE_BG[r.type],
-                          color: TYPE_COLOR[r.type],
-                        }}>{r.type}</span>
                       </div>
-                      <div className="log-meta">
-                        <span className="log-date">📅 {r.date}</span>
-                        {r.detail
-                          ? <span className="log-detail">📝 {r.detail}</span>
-                          : <span className="log-no-detail">詳細なし</span>
-                        }
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            }
-          </div>
+                    );
+                  })
+                }
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
